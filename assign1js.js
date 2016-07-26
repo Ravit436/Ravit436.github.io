@@ -41,7 +41,7 @@ function showBy()
 
   if(region == "select")
   {
-    showing.innerHTML = "Please Select thr type of region";
+    showing.innerHTML = "Please Select the type of region";
     return 0;
   }
 
@@ -117,6 +117,7 @@ function showBy()
     updateSvg.enter().append("rect");
 
     updateSvg.style("fill", "steelblue")
+             .transition().duration(2000)
              .attr("width", x.rangeBand())
              .attr("x", function(d) { return x(d.date); })
              .attr("y", function(d) { return y(d.literacy_rate); })
@@ -1114,10 +1115,80 @@ function showBy()
     return timeIn[value]();
   }
 
-  function searchRegion (name,value,data)
+  function searchRegion (name,valuePlace,data)
   {
+    var returnVal=["Not Found"];
 
-      for(var i=0;i<data.state.length;i++)
+    _.forEach(data.state, function(value, key)
+    {
+      if(name == 'state')
+      {
+        if(value.name == valuePlace)
+        {
+          console.log(value.name);
+          returnVal = ["State "+valuePlace+" is found"];
+          return false;
+        }
+      }
+      else
+      {
+        _.forEach(value.district, function(value, key)
+        {
+
+          if(name == 'district')
+          {
+            if(value.name == valuePlace)
+            {
+              console.log(value.name);
+              returnVal = ["District "+valuePlace+" is found"];
+              return false;
+            }
+          }
+
+          _.forEach(value.block, function(value, key)
+          {
+            if(name == 'block')
+            {
+              if(value.name == valuePlace)
+              {
+                console.log(value.name);
+                returnVal = ["Block "+valuePlace+" is found"];
+                return false;
+              }
+            }
+
+            _.forEach(value.panchayat, function(value, key)
+            {
+
+              if(name == 'panchayat')
+              {
+                if(value.name == valuePlace)
+                {
+                  console.log(value.name);
+                  returnVal = ["Panchayat "+valuePlace+" is found"];
+                  return false;
+                }
+              }
+
+              _.forEach(value.village, function(value, key)
+              {
+                if(name == 'village')
+                {
+                  if(value.name == valuePlace)
+                  {
+                    console.log(value.name);
+                    returnVal = ["Village "+valuePlace+" is found"];
+                    return false;
+                  }
+                }
+              });
+            });
+          });
+        });
+      }
+    });
+
+      /*for(var i=0;i<data.state.length;i++)
       {
         if(name=='state')
         {
@@ -1165,6 +1236,6 @@ function showBy()
             }
           }
         }
-      }
-      return ["Not Found"];
+      }*/
+      return returnVal;
   }

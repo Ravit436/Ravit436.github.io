@@ -29,9 +29,13 @@ var yAxis = d3.svg.axis()
               .ticks(10);
 
 var check = 0;
+var returnVal;
+var storeData;
 
 function showBy()
 {
+  returnVal=["Not Found"];
+  storeData=[];
   var xShows = null, regionname = null;
   var showing = document.getElementById("showing");
   var region = document.getElementById("region").value;
@@ -39,9 +43,16 @@ function showBy()
   var startdate = parseDate.parse(document.getElementById("startdate").value);
   var enddate = parseDate.parse(document.getElementById("enddate").value);
 
+  console.log("start : "+startdate+" end : "+enddate);
   if(region == "select")
   {
     showing.innerHTML = "Please Select the type of region";
+    return 0;
+  }
+
+  if(enddate - startdate < 0)
+  {
+    showing.innerHTML = "End Date should be greater than Start Date";
     return 0;
   }
 
@@ -58,20 +69,31 @@ function showBy()
   d3.json("data.json", function(data)
   {
     var searchValue = searchRegion(region,regionname,data);
-    var storeData;
 
-    if(searchValue.length > 1)
-      storeData = operation(displayTime+region,searchValue,data,startdate,enddate);
+    console.log(searchValue);
+
+    if(searchValue.length == 2)
+      operation(displayTime,searchValue[1].place,startdate,enddate);
     else
     {
-      showing.innerHTML = searchValue[0];
-      console.log(searchValue[0]);
+      showing.innerHTML = region + " " + regionname + " " +searchValue[0];
       return 0;
     }
     console.log(storeData);
+    var graphData = _(storeData)
+      .groupBy("date")
+      .map(function (data) {
 
+          var summation = _.sumBy(data, "literacy_rate")
+          return {
+              date: data[0].date,
+              literacy_rate: summation/data.length
+          };
+      }).value();
 
-    x.domain(storeData.map(function(d) { return d.date; }));
+    console.log(graphData);
+
+    x.domain(graphData.map(function(d) { return d.date; }));
 
     if(check++ == 0)
     {
@@ -112,7 +134,7 @@ function showBy()
        .style("text-anchor", "end")
        .text("Literacy rate");
 
-    var updateSvg = svg.selectAll("rect").data(storeData);
+    var updateSvg = svg.selectAll("rect").data(graphData);
 
     updateSvg.enter().append("rect");
 
@@ -126,7 +148,6 @@ function showBy()
     updateSvg.exit().remove();
 
     showing.innerHTML = searchValue[0];
-
 
   });
 }
@@ -143,814 +164,11 @@ function showBy()
       return 'century';
   }
 
-  function operation (value,id,data,startdate,enddate)
+  function operation (value,data,startdate,enddate)
   {
 
-    function opCenturyState()
+    function opCentury ()
     {
-      var storeData=[];
-      var year = Math.floor(startdate.getYear()/100);
-      var value = data.state[id[1]];
-      var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.district[0].block[0].panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date);
-
-        if(parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          if(Math.floor(date.getYear()/100) == year)
-          {
-            county++;
-            for(var j=0;j < value.district.length;j++)
-            {
-              for (var k = 0; k < value.district[j].block.length; k++)
-              {
-                for (var l = 0; l < value.district[j].block[k].panchayat.length; l++)
-                {
-                  for (var m = 0; m < value.district[j].block[k].panchayat[l].village.length; m++)
-                  {
-                    sum+=value.district[j].block[k].panchayat[l].village[m].data[i].val;
-                    count++;
-                  }
-                }
-              }
-            }
-          }
-          else
-          {
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.district.length;j++)
-              {
-                for (var k = 0; k < value.district[j].block.length; k++)
-                {
-                  for (var l = 0; l < value.district[j].block[k].panchayat.length; l++)
-                  {
-                    for (var m = 0; m < value.district[j].block[k].panchayat[l].village.length; m++)
-                    {
-                      sum+=value.district[j].block[k].panchayat[l].village[m].data[i].val;
-                      count++;
-                    }
-                  }
-                }
-              }
-          }
-        }
-        if(parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opDecadeState()
-    {
-      var storeData=[];
-      var year = Math.floor(startdate.getYear()/10);
-      var value = data.state[id[1]];
-      var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.district[0].block[0].panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date);
-
-        if(parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          if(Math.floor(date.getYear()/10) == year)
-          {
-            county++;
-            for(var j=0;j < value.district.length;j++)
-            {
-              for (var k = 0; k < value.district[j].block.length; k++)
-              {
-                for (var l = 0; l < value.district[j].block[k].panchayat.length; l++)
-                {
-                  for (var m = 0; m < value.district[j].block[k].panchayat[l].village.length; m++)
-                  {
-                    sum+=value.district[j].block[k].panchayat[l].village[m].data[i].val;
-                    count++;
-                  }
-                }
-              }
-            }
-          }
-          else
-          {
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.district.length;j++)
-              {
-                for (var k = 0; k < value.district[j].block.length; k++)
-                {
-                  for (var l = 0; l < value.district[j].block[k].panchayat.length; l++)
-                  {
-                    for (var m = 0; m < value.district[j].block[k].panchayat[l].village.length; m++)
-                    {
-                      sum+=value.district[j].block[k].panchayat[l].village[m].data[i].val;
-                      count++;
-                    }
-                  }
-                }
-              }
-          }
-        }
-        if(parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opYearState()
-    {
-      var storeData=[];
-      var year = startdate.getYear();
-      var value = data.state[id[1]];
-      var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.district[0].block[0].panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date);
-
-        if(parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          if(date.getYear() == year)
-          {
-            county++;
-            for(var j=0;j < value.district.length;j++)
-            {
-              for (var k = 0; k < value.district[j].block.length; k++)
-              {
-                for (var l = 0; l < value.district[j].block[k].panchayat.length; l++)
-                {
-                  for (var m = 0; m < value.district[j].block[k].panchayat[l].village.length; m++)
-                  {
-                    sum+=value.district[j].block[k].panchayat[l].village[m].data[i].val;
-                    count++;
-                  }
-                }
-              }
-            }
-          }
-          else
-          {
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.district.length;j++)
-              {
-                for (var k = 0; k < value.district[j].block.length; k++)
-                {
-                  for (var l = 0; l < value.district[j].block[k].panchayat.length; l++)
-                  {
-                    for (var m = 0; m < value.district[j].block[k].panchayat[l].village.length; m++)
-                    {
-                      sum+=value.district[j].block[k].panchayat[l].village[m].data[i].val;
-                      count++;
-                    }
-                  }
-                }
-              }
-          }
-        }
-        if(parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opMonthState()
-    {
-      var storeData=[];
-      var value = data.state[id[1]];
-      console.log(value);
-      for(var i=0;i < value.district[0].block[0].panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date);
-        var sum = 0;
-        if(parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          for(var j=0;j < value.district.length;j++)
-          {
-            for (var k = 0; k < value.district[j].block.length; k++)
-            {
-              for (var l = 0; l < value.district[j].block[k].panchayat.length; l++)
-              {
-                for (var m = 0; m < value.district[j].block[k].panchayat[l].village.length; m++)
-                {
-                  sum+=value.district[j].block[k].panchayat[l].village[m].data[i].val;
-                }
-              }
-            }
-          }
-              storeData.push({
-                "date": parseDate.parse(value.district[0].block[0].panchayat[0].village[0].data[i].date),
-                "literacy_rate": sum/(j*k*l*m)
-              });
-        }
-      }
-      return storeData;
-    }
-
-    function opCenturyDistrict()
-    {
-      var storeData=[];
-      var year = Math.floor(startdate.getYear()/100);
-      var value = data.state[id[1]].district[id[2]];
-      var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.block[0].panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date);
-
-        if(parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          if(Math.floor(date.getYear()/100) == year)
-          {
-            county++;
-            for(var j=0;j < value.block.length;j++)
-            {
-              for (var k = 0; k < value.block[j].panchayat.length; k++)
-              {
-                for (var l = 0; l < value.block[j].panchayat[k].village.length; l++)
-                {
-                  sum+=value.block[j].panchayat[k].village[l].data[i].val;
-                  count++;
-                }
-              }
-            }
-          }
-          else
-          {
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.block[0].panchayat[0].village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.block.length;j++)
-              {
-                for (var k = 0; k < value.block[j].panchayat.length; k++)
-                {
-                  for (var l = 0; l < value.block[j].panchayat[k].village.length; l++)
-                  {
-                    sum+=value.block[j].panchayat[k].village[l].data[i].val;
-                    count++;
-                  }
-                }
-              }
-          }
-        }
-        if(parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.block[0].panchayat[0].village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opDecadeDistrict()
-    {
-      var storeData=[];
-      var year = Math.floor(startdate.getYear()/10);
-      var value = data.state[id[1]].district[id[2]];
-      var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.block[0].panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date);
-
-        if(parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          if(Math.floor(date.getYear()/10) == year)
-          {
-            county++;
-            for(var j=0;j < value.block.length;j++)
-            {
-              for (var k = 0; k < value.block[j].panchayat.length; k++)
-              {
-                for (var l = 0; l < value.block[j].panchayat[k].village.length; l++)
-                {
-                  sum+=value.block[j].panchayat[k].village[l].data[i].val;
-                  count++;
-                }
-              }
-            }
-          }
-          else
-          {
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.block[0].panchayat[0].village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.block.length;j++)
-              {
-                for (var k = 0; k < value.block[j].panchayat.length; k++)
-                {
-                  for (var l = 0; l < value.block[j].panchayat[k].village.length; l++)
-                  {
-                    sum+=value.block[j].panchayat[k].village[l].data[i].val;
-                    count++;
-                  }
-                }
-              }
-          }
-        }
-        if(parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.block[0].panchayat[0].village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opYearDistrict()
-    {
-      var storeData=[];
-      var year = startdate.getYear();
-      var value = data.state[id[1]].district[id[2]];
-      var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.block[0].panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date);
-
-        if(parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          if(date.getYear() == year)
-          {
-            county++;
-            for(var j=0;j < value.block.length;j++)
-            {
-              for (var k = 0; k < value.block[j].panchayat.length; k++)
-              {
-                for (var l = 0; l < value.block[j].panchayat[k].village.length; l++)
-                {
-                  sum+=value.block[j].panchayat[k].village[l].data[i].val;
-                  count++;
-                }
-              }
-            }
-          }
-          else
-          {
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.block[0].panchayat[0].village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.block.length;j++)
-              {
-                for (var k = 0; k < value.block[j].panchayat.length; k++)
-                {
-                  for (var l = 0; l < value.block[j].panchayat[k].village.length; l++)
-                  {
-                    sum+=value.block[j].panchayat[k].village[l].data[i].val;
-                    count++;
-                  }
-                }
-              }
-          }
-        }
-        if(parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.block[0].panchayat[0].village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opMonthDistrict()
-    {
-      var storeData=[];
-      var value = data.state[id[1]].district[id[2]];
-      console.log(value);
-      for(var i=0;i < value.block[0].panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date);
-        var sum = 0;
-        if(parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          for(var j=0;j < value.block.length;j++)
-          {
-            for (var k = 0; k < value.block[j].panchayat.length; k++)
-            {
-              for (var l = 0; l < value.block[j].panchayat[k].village.length; l++)
-              {
-                sum+=value.block[j].panchayat[k].village[l].data[i].val;
-              }
-            }
-          }
-              storeData.push({
-                "date": parseDate.parse(value.block[0].panchayat[0].village[0].data[i].date),
-                "literacy_rate": sum/(j*k*l)
-              });
-        }
-      }
-      return storeData;
-    }
-
-    function opCenturyBlock ()
-    {
-      var storeData=[];
-      var year = Math.floor(startdate.getYear()/100);
-      var value = data.state[id[1]].district[id[2]].block[id[3]];
-      console.log(value);
-      var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.panchayat[0].village[0].data[i].date);
-
-        if(parseDate.parse(value.panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          if(Math.floor(date.getYear()/100) == year)
-          {
-            county++;
-            for(var j=0;j < value.panchayat.length;j++)
-            {
-              for(var k=0;k < value.panchayat[j].village.length;k++)
-              {
-                sum+=value.panchayat[j].village[k].data[i].val;
-                count++;
-              }
-            }
-          }
-          else
-          {
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.panchayat[0].village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.panchayat.length;j++)
-              {
-                for(var k=0;k < value.panchayat[j].village.length;k++)
-                {
-                  sum+=value.panchayat[j]
-                        .village[k]
-                        .data[i].val;
-                  count++;
-                }
-              }
-          }
-        }
-        if(parseDate.parse(value.panchayat[0].village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.panchayat[0].village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opDecadeBlock ()
-    {
-      var storeData=[];
-      var year = Math.floor(startdate.getYear()/10);
-      var value = data.state[id[1]].district[id[2]].block[id[3]];
-      console.log(value);
-      var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.panchayat[0].village[0].data[i].date);
-
-        if(parseDate.parse(value.panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          if(Math.floor(date.getYear()/10) == year)
-          {
-            county++;
-            for(var j=0;j < value.panchayat.length;j++)
-            {
-              for(var k=0;k < value.panchayat[j].village.length;k++)
-              {
-                sum+=value.panchayat[j].village[k].data[i].val;
-                count++;
-              }
-            }
-          }
-          else
-          {
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.panchayat[0].village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.panchayat.length;j++)
-              {
-                for(var k=0;k < value.panchayat[j].village.length;k++)
-                {
-                  sum+=value.panchayat[j]
-                        .village[k]
-                        .data[i].val;
-                  count++;
-                }
-              }
-          }
-        }
-        if(parseDate.parse(value.panchayat[0].village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.panchayat[0].village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opYearBlock()
-    {
-        var storeData=[];
-        var year = startdate.getYear();
-        var value = data.state[id[1]].district[id[2]].block[id[3]];
-        var sum = 0,count = 0,county=0;
-        for(var i=0;i < value.panchayat[0].village[0].data.length;i++)
-        {
-          var date = parseDate.parse(value.panchayat[0].village[0].data[i].date);
-
-          if(parseDate.parse(value.panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.panchayat[0].village[0].data[i].date) <= enddate)
-          {
-            if(date.getYear() == year)
-            {
-              county++;
-              for(var j=0;j < value.panchayat.length;j++)
-              {
-                for(var k=0;k < value.panchayat[j].village.length;k++)
-                {
-                  sum+=value.panchayat[j].village[k].data[i].val;
-                  count++;
-                }
-              }
-            }
-            else
-            {
-                console.log("Sum "+sum+" c" +count);
-                storeData.push({
-                  "date": parseDate.parse(value.panchayat[0].village[0].data[i-county].date),
-                  "literacy_rate": sum/count
-                });
-                year++;
-                sum = 0, count = 0,county=1;
-                for(var j=0;j < value.panchayat.length;j++)
-                {
-                  for(var k=0;k < value.panchayat[j].village.length;k++)
-                  {
-                    sum+=value.panchayat[j]
-                          .village[k]
-                          .data[i].val;
-                    count++;
-                  }
-                }
-            }
-          }
-          if(parseDate.parse(value.panchayat[0].village[0].data[i].date) > enddate)
-            break;
-        }
-        storeData.push({
-          "date": parseDate.parse(value.panchayat[0].village[0].data[i-county].date),
-          "literacy_rate": sum/count
-        });
-        return storeData;
-    }
-
-    function opMonthBlock()
-    {
-      var storeData=[];
-      var value = data.state[id[1]].district[id[2]].block[id[3]];
-      console.log(value);
-      for(var i=0;i < value.panchayat[0].village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.panchayat[0].village[0].data[i].date);
-        var sum = 0;
-        if(parseDate.parse(value.panchayat[0].village[0].data[i].date) >= startdate && parseDate.parse(value.panchayat[0].village[0].data[i].date) <= enddate)
-        {
-          for(var j=0;j < value.panchayat.length;j++)
-          {
-            for (var k = 0; k < value.panchayat[j].village.length; k++)
-            {
-              sum+=value.panchayat[j].village[k].data[i].val;
-            }
-          }
-              storeData.push({
-                "date": parseDate.parse(value.panchayat[0].village[0].data[i].date),
-                "literacy_rate": sum/(j*k)
-              });
-        }
-      }
-      return storeData;
-    }
-
-
-    function opCenturyPanchayat ()
-    {
-      var storeData=[];
-      var year = Math.floor(startdate.getYear()/100);
-      var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]];
-      console.log(value);
-              var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.village[0].data[i].date);
-
-        if(parseDate.parse(value.village[0].data[i].date) >= startdate && parseDate.parse(value.village[0].data[i].date) <= enddate)
-        {
-          if(Math.floor(date.getYear()/100) == year)
-          {
-            county++;
-            for(var j=0;j < value.village.length;j++)
-            {
-                sum+=value.village[j].data[i].val;
-                count++;
-            }
-          }
-          else
-          {
-
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.village.length;j++)
-              {
-                  sum+=value.village[j].data[i].val;
-                  count++;
-              }
-          }
-        }
-        if(parseDate.parse(value.village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opDecadePanchayat ()
-    {
-
-        var storeData=[];
-        var year = Math.floor(startdate.getYear()/10);
-        var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]];
-        console.log(value);
-                var sum = 0,count = 0,county=0;
-        for(var i=0;i < value.village[0].data.length;i++)
-        {
-          var date = parseDate.parse(value.village[0].data[i].date);
-
-          if(parseDate.parse(value.village[0].data[i].date) >= startdate && parseDate.parse(value.village[0].data[i].date) <= enddate)
-          {
-            if(Math.floor(date.getYear()/10) == year)
-            {
-              county++;
-              for(var j=0;j < value.village.length;j++)
-              {
-                  sum+=value.village[j].data[i].val;
-                  count++;
-              }
-            }
-            else
-            {
-
-                console.log("Sum "+sum+" c" +count);
-                storeData.push({
-                  "date": parseDate.parse(value.village[0].data[i-county].date),
-                  "literacy_rate": sum/count
-                });
-                year++;
-                sum = 0, count = 0,county=1;
-                for(var j=0;j < value.village.length;j++)
-                {
-                    sum+=value.village[j].data[i].val;
-                    count++;
-                }
-            }
-          }
-          if(parseDate.parse(value.village[0].data[i].date) > enddate)
-            break;
-        }
-        storeData.push({
-          "date": parseDate.parse(value.village[0].data[i-county].date),
-          "literacy_rate": sum/count
-        });
-        return storeData;
-    }
-
-    function opYearPanchayat ()
-    {
-      var storeData=[];
-      var year = startdate.getYear();
-      var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]];
-      console.log(value);
-              var sum = 0,count = 0,county=0;
-      for(var i=0;i < value.village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.village[0].data[i].date);
-
-        if(parseDate.parse(value.village[0].data[i].date) >= startdate && parseDate.parse(value.village[0].data[i].date) <= enddate)
-        {
-          if(date.getYear() == year)
-          {
-            county++;
-            for(var j=0;j < value.village.length;j++)
-            {
-                sum+=value.village[j].data[i].val;
-                count++;
-            }
-          }
-          else
-          {
-
-              console.log("Sum "+sum+" c" +count);
-              storeData.push({
-                "date": parseDate.parse(value.village[0].data[i-county].date),
-                "literacy_rate": sum/count
-              });
-              year++;
-              sum = 0, count = 0,county=1;
-              for(var j=0;j < value.village.length;j++)
-              {
-                  sum+=value.village[j].data[i].val;
-                  count++;
-              }
-          }
-        }
-        if(parseDate.parse(value.village[0].data[i].date) > enddate)
-          break;
-      }
-      storeData.push({
-        "date": parseDate.parse(value.village[0].data[i-county].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-    }
-
-    function opMonthPanchayat ()
-    {
-      var storeData=[];
-      var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]];
-      console.log(value);
-      for(var i=0;i < value.village[0].data.length;i++)
-      {
-        var date = parseDate.parse(value.village[0].data[i].date);
-        var sum = 0;
-        if(parseDate.parse(value.village[0].data[i].date) >= startdate && parseDate.parse(value.village[0].data[i].date) <= enddate)
-        {
-          for(var j=0;j < value.village.length;j++)
-          {
-              sum+=value.village[j].data[i].val;
-          }
-              storeData.push({
-                "date": parseDate.parse(value.village[0].data[i].date),
-                "literacy_rate": sum/j
-              });
-        }
-      }
-      return storeData;
-    }
-
-    function opCenturyVillage ()
-    {
-      var storeData=[];
       var year = Math.floor(startdate.getYear()/100);
       var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]].village[id[5]];
       var sum = 0, count = 0;
@@ -989,9 +207,8 @@ function showBy()
 
     }
 
-    function opDecadeVillage ()
+    function opDecade ()
     {
-      var storeData=[];
       var year = Math.floor(startdate.getYear()/10);
       var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]].village[id[5]];
       var sum = 0, count = 0;
@@ -1029,9 +246,8 @@ function showBy()
       return storeData;
     }
 
-    function opYearVillage ()
+    function opYear ()
     {
-      var storeData=[];
       var year = startdate.getYear();
       var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]].village[id[5]];
       var sum = 0, count = 0;
@@ -1069,173 +285,69 @@ function showBy()
 
     }
 
-    function opMonthVillage ()
+    function opMonth (data)
     {
-      var storeData=[];
-      console.log(startdate.getYear()+"-"+startdate.getMonth()+"-"+startdate.getDate());
-      var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]].village[id[5]];
-      console.log(value.data.length);
-      for(var i=0;i < value.data.length;i++)
+      _.forEach(data, function(value)
       {
-        if(parseDate.parse(value.data[i].date) >= startdate && parseDate.parse(value.data[i].date) <= enddate)
+        var filtered = _.filter(value.database, function(value)
         {
-          console.log(value.data[i].date);
+          var month = parseInt(value.date.substr(3,4));
+          var year = parseInt(value.date.substr(6,9));
+          if((year == startdate.getYear()+1900) && year == (enddate.getYear()+1900))
+          {
+            if(month >= (startdate.getMonth()+1) && month <= (enddate.getMonth()+1))
+              return true;
+            else
+              return false;
+          }
+          else {
+            if(month >= (startdate.getMonth()+1) && year == (startdate.getYear()+1900))
+              return true;
+            else if(month <= (enddate.getMonth()+1) && year == (enddate.getYear()+1900))
+              return true;
+            else if(year > (startdate.getYear()+1900) && year < (enddate.getYear()+1900))
+              return true;
+            else
+              return false;
+          }
+
+          //return (month >= (startdate.getMonth()+1) && year >= (startdate.getYear()+1900) && month <= (enddate.getMonth()+1) && year <= (enddate.getYear()+1900) );
+        });
+        _.forEach(filtered, function(value)
+        {
           storeData.push({
-            "date": parseDate.parse(value.data[i].date),
-            "literacy_rate": value.data[i].val
+            "date": parseDate.parse(value.date),
+            "literacy_rate": value.val
           });
-        }
-      }
-      return storeData;
+        });
+        opMonth(value.place);
+      });
     }
 
     var timeIn =
     {
-      'centurystate': opCenturyState,
-      'decadestate': opDecadeState,
-      'yearstate': opYearState,
-      'monthstate': opMonthState,
-      'centurydistrict': opCenturyDistrict,
-      'decadedistrict': opDecadeDistrict,
-      'yeardistrict': opYearDistrict,
-      'monthdistrict': opMonthDistrict,
-      'centuryblock': opCenturyBlock,
-      'decadeblock': opDecadeBlock,
-      'yearblock': opYearBlock,
-      'monthblock': opMonthBlock,
-      'centurypanchayat': opCenturyPanchayat,
-      'decadepanchayat': opDecadePanchayat,
-      'yearpanchayat': opYearPanchayat,
-      'monthpanchayat': opMonthPanchayat,
-      'centuryvillage': opCenturyVillage,
-      'decadevillage': opDecadeVillage,
-      'yearvillage': opYearVillage,
-      'monthvillage': opMonthVillage,
+      'century': opCentury,
+      'decade': opDecade,
+      'year': opYear,
+      'month': opMonth,
     };
-    return timeIn[value]();
+    timeIn[value](data);
   }
+
+
 
   function searchRegion (name,valuePlace,data)
   {
-    var returnVal=["Not Found"];
-
-    _.forEach(data.state, function(value, key)
+    _.forEach(data, function(value)
     {
-      if(name == 'state')
+      if(value.name == valuePlace && value.region == name)
       {
-        if(value.name == valuePlace)
-        {
-          console.log(value.name);
-          returnVal = ["State "+valuePlace+" is found"];
-          return false;
-        }
+        console.log(value);
+        returnVal = [name+" " + valuePlace + " is found",value];
+        return false;
       }
       else
-      {
-        _.forEach(value.district, function(value, key)
-        {
-
-          if(name == 'district')
-          {
-            if(value.name == valuePlace)
-            {
-              console.log(value.name);
-              returnVal = ["District "+valuePlace+" is found"];
-              return false;
-            }
-          }
-
-          _.forEach(value.block, function(value, key)
-          {
-            if(name == 'block')
-            {
-              if(value.name == valuePlace)
-              {
-                console.log(value.name);
-                returnVal = ["Block "+valuePlace+" is found"];
-                return false;
-              }
-            }
-
-            _.forEach(value.panchayat, function(value, key)
-            {
-
-              if(name == 'panchayat')
-              {
-                if(value.name == valuePlace)
-                {
-                  console.log(value.name);
-                  returnVal = ["Panchayat "+valuePlace+" is found"];
-                  return false;
-                }
-              }
-
-              _.forEach(value.village, function(value, key)
-              {
-                if(name == 'village')
-                {
-                  if(value.name == valuePlace)
-                  {
-                    console.log(value.name);
-                    returnVal = ["Village "+valuePlace+" is found"];
-                    return false;
-                  }
-                }
-              });
-            });
-          });
-        });
-      }
+        searchRegion(name,valuePlace,value.place);
     });
-
-      /*for(var i=0;i<data.state.length;i++)
-      {
-        if(name=='state')
-        {
-          if(data.state[i].name == value)
-            return ["State "+value+" is found",i];
-        }
-        else
-        {
-          for(var j=0;j<data.state[i].district.length;j++)
-          {
-            if(name=='district')
-            {
-              if(data.state[i].district[j].name == value)
-                return ["District "+value+" is found",i,j];
-            }
-            else
-            {
-              for(var k=0;k<data.state[i].district[j].block.length;k++)
-              {
-                if(name=='block')
-                {
-                  if(data.state[i].district[j].block[k].name == value)
-                    return ["Block "+value+" is found",i,j,k];
-                }
-                else
-                {
-                  for(var l=0;l<data.state[i].district[j].block[k].panchayat.length;l++)
-                  {
-                    if(name=='panchayat')
-                    {
-                      if(data.state[i].district[j].block[k].panchayat[l].name == value)
-                        return ["Panchayat "+value+" is found",i,j,k,l];
-                    }
-                    else
-                    {
-                      for(var m=0;m<data.state[i].district[j].block[k].panchayat[l].village.length;m++)
-                      {
-                        if(data.state[i].district[j].block[k].panchayat[l].village[m].name == value)
-                          return ["Village "+value+" is found",i,j,k,l,m];
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }*/
-      return returnVal;
+    return returnVal;
   }

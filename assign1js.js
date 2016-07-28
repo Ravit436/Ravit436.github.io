@@ -73,24 +73,15 @@ function showBy()
     console.log(searchValue);
 
     if(searchValue.length == 2)
-      operation(displayTime,searchValue[1].place,startdate,enddate);
+      filterData(searchValue[1].place,startdate,enddate);
     else
     {
       showing.innerHTML = region + " " + regionname + " " +searchValue[0];
       return 0;
     }
     console.log(storeData);
-    var graphData = _(storeData)
-      .groupBy("date")
-      .map(function (data) {
 
-          var summation = _.sumBy(data, "literacy_rate")
-          return {
-              date: data[0].date,
-              literacy_rate: summation/data.length
-          };
-      }).value();
-
+    var graphData = operation(displayTime,storeData,startdate,enddate);
     console.log(graphData);
 
     x.domain(graphData.map(function(d) { return d.date; }));
@@ -164,164 +155,75 @@ function showBy()
       return 'century';
   }
 
-  function operation (value,data,startdate,enddate)
+  function operation (displayTime,data,startdate,enddate)
   {
 
     function opCentury ()
     {
-      var year = Math.floor(startdate.getYear()/100);
-      var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]].village[id[5]];
-      var sum = 0, count = 0;
-      for(var i=0;i < value.data.length;i++)
+      var grouped = _.groupBy(data, function (value)
       {
-        var date = parseDate.parse(value.data[i].date);
+        return _.floor(parseDate(value.date).substr(6,9)/100);
+      });
 
-        if(parseDate.parse(value.data[i].date) >= startdate && parseDate.parse(value.data[i].date) <= enddate)
-        {
-
-          console.log(Math.floor(date.getYear()/100)+"   "+year);
-          if(Math.floor(date.getYear()/100) == year)
-          {
-            sum+=value.data[i].val;
-            count++;
-          }
-          else
-          {
-            console.log("Sum "+sum+" c" +count);
-            storeData.push({
-              "date": parseDate.parse(value.data[i-count].date),
-              "literacy_rate": sum/count
-            });
-            year++;
-            sum=value.data[i].val;
-            count=1;
-          }
-        }
-      }
-
-        storeData.push({
-          "date": parseDate.parse(value.data[i-count].date),
-          "literacy_rate": sum/count
-        });
-      return storeData;
-
+      var  mapped =  _.map(grouped, function (data)
+      {
+           var summation = _.sumBy(data, "literacy_rate");
+           return {
+               date: data[0].date,
+               literacy_rate: summation/data.length
+           };
+       });
+       return mapped;
     }
 
     function opDecade ()
     {
-      var year = Math.floor(startdate.getYear()/10);
-      var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]].village[id[5]];
-      var sum = 0, count = 0;
-      for(var i=0;i < value.data.length;i++)
+      var grouped = _.groupBy(data, function (value)
       {
-        var date = parseDate.parse(value.data[i].date);
+        return _.floor(parseDate(value.date).substr(6,9)/10);
+      });
 
-        if(parseDate.parse(value.data[i].date) >= startdate && parseDate.parse(value.data[i].date) <= enddate)
-        {
-
-          console.log(Math.floor(date.getYear()/10)+"   "+year);
-          if(Math.floor(date.getYear()/10) == year)
-          {
-            sum+=value.data[i].val;
-            count++;
-          }
-          else
-          {
-            console.log("Sum "+sum+" c" +count);
-            storeData.push({
-              "date": parseDate.parse(value.data[i-count].date),
-              "literacy_rate": sum/count
-            });
-            year++;
-            sum=value.data[i].val;
-            count=1;
-          }
-        }
-      }
-
-        storeData.push({
-          "date": parseDate.parse(value.data[i-count].date),
-          "literacy_rate": sum/count
-        });
-      return storeData;
+      var  mapped =  _.map(grouped, function (data)
+      {
+           var summation = _.sumBy(data, "literacy_rate");
+           return {
+               date: data[0].date,
+               literacy_rate: summation/data.length
+           };
+       });
+       return mapped;
     }
 
     function opYear ()
     {
-      var year = startdate.getYear();
-      var value = data.state[id[1]].district[id[2]].block[id[3]].panchayat[id[4]].village[id[5]];
-      var sum = 0, count = 0;
-      for(var i=0;i < value.data.length;i++)
-      {
-        var date = parseDate.parse(value.data[i].date);
+       var grouped = _.groupBy(data, function (value)
+       {
+         return parseDate(value.date).substr(6,9);
+       });
 
-        if(parseDate.parse(value.data[i].date) >= startdate && parseDate.parse(value.data[i].date) <= enddate)
-        {
-          console.log("Sum "+sum+" c" +count);
-          if(date.getYear() == year)
-          {
-            sum+=value.data[i].val;
-            count++;
-          }
-          else
-          {
-
-              console.log("Sum "+sum+" c" +count);
-            storeData.push({
-              "date": parseDate.parse(value.data[i-count].date),
-              "literacy_rate": sum/count
-            });
-            year++;
-            sum=value.data[i].val;
-            count=1;
-          }
-        }
-      }
-      storeData.push({
-        "date": parseDate.parse(value.data[i-count].date),
-        "literacy_rate": sum/count
-      });
-      return storeData;
-
+       var  mapped =  _.map(grouped, function (data)
+       {
+            var summation = _.sumBy(data, "literacy_rate");
+            return {
+                date: data[0].date,
+                literacy_rate: summation/data.length
+            };
+        });
+        return mapped;
     }
 
-    function opMonth (data)
+    function opMonth ()
     {
-      _.forEach(data, function(value)
-      {
-        var filtered = _.filter(value.database, function(value)
-        {
-          var month = parseInt(value.date.substr(3,4));
-          var year = parseInt(value.date.substr(6,9));
-          if((year == startdate.getYear()+1900) && year == (enddate.getYear()+1900))
-          {
-            if(month >= (startdate.getMonth()+1) && month <= (enddate.getMonth()+1))
-              return true;
-            else
-              return false;
-          }
-          else {
-            if(month >= (startdate.getMonth()+1) && year == (startdate.getYear()+1900))
-              return true;
-            else if(month <= (enddate.getMonth()+1) && year == (enddate.getYear()+1900))
-              return true;
-            else if(year > (startdate.getYear()+1900) && year < (enddate.getYear()+1900))
-              return true;
-            else
-              return false;
-          }
+      return _(data)
+        .groupBy("date")
+        .map(function (data) {
 
-          //return (month >= (startdate.getMonth()+1) && year >= (startdate.getYear()+1900) && month <= (enddate.getMonth()+1) && year <= (enddate.getYear()+1900) );
-        });
-        _.forEach(filtered, function(value)
-        {
-          storeData.push({
-            "date": parseDate.parse(value.date),
-            "literacy_rate": value.val
-          });
-        });
-        opMonth(value.place);
-      });
+            var summation = _.sumBy(data, "literacy_rate");
+            return {
+                date: data[0].date,
+                literacy_rate: summation/data.length
+            };
+        }).value();
     }
 
     var timeIn =
@@ -331,10 +233,8 @@ function showBy()
       'year': opYear,
       'month': opMonth,
     };
-    timeIn[value](data);
+    return timeIn[displayTime]();
   }
-
-
 
   function searchRegion (name,valuePlace,data)
   {
@@ -343,11 +243,55 @@ function showBy()
       if(value.name == valuePlace && value.region == name)
       {
         console.log(value);
-        returnVal = [name+" " + valuePlace + " is found",value];
+        returnVal = [name+" " + valuePlace + " is Found",value];
         return false;
       }
       else
         searchRegion(name,valuePlace,value.place);
     });
     return returnVal;
+  }
+
+  function filterData (data, startdate, enddate)
+  {
+
+    _.forEach(data, function(value)
+    {
+      var filtered = filtering(value.database, startdate, enddate);
+      _.forEach(filtered, function(value)
+      {
+        storeData.push({
+          "date": parseDate.parse(value.date),
+          "literacy_rate": value.val
+        });
+      });
+      filterData(value.place,startdate,enddate);
+    });
+  }
+
+  function filtering(data, startdate, enddate)
+  {
+    return _.filter(data, function(value)
+    {
+      var month = parseInt(value.date.substr(3,4));
+      var year = parseInt(value.date.substr(6,9));
+      if((year == startdate.getYear()+1900) && year == (enddate.getYear()+1900))
+      {
+        if(month >= (startdate.getMonth()+1) && month <= (enddate.getMonth()+1))
+          return true;
+        else
+          return false;
+      }
+      else
+      {
+        if(month >= (startdate.getMonth()+1) && year == (startdate.getYear()+1900))
+          return true;
+        else if(month <= (enddate.getMonth()+1) && year == (enddate.getYear()+1900))
+          return true;
+        else if(year > (startdate.getYear()+1900) && year < (enddate.getYear()+1900))
+          return true;
+        else
+          return false;
+      }
+    });
   }

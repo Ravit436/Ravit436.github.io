@@ -36,10 +36,10 @@ function showBy()
 {
   returnVal=["Not Found"];
   storeData=[];
-  var xShows = null, regionname = null;
+  var xShows = null, regionName = null;
   var showing = document.getElementById("showing");
   var region = document.getElementById("region").value;
-  regionname = document.getElementById("regionname").value;
+  regionName = document.getElementById("regionName").value;
   var startdate = parseDate.parse(document.getElementById("startdate").value);
   var enddate = parseDate.parse(document.getElementById("enddate").value);
 
@@ -50,37 +50,38 @@ function showBy()
     return 0;
   }
 
+  //if startdate is greater thsn enddate
   if(enddate - startdate < 0)
   {
     showing.innerHTML = "End Date should be greater than Start Date";
     return 0;
   }
 
-  var timeSpan = 0;
-  if(startdate.getYear() == enddate.getYear())
-    timeSpan = enddate.getDate()+1-startdate.getDate()+30*(enddate.getMonth()-startdate.getMonth());
-  else
-    timeSpan = enddate.getDate()+1-startdate.getDate()+30*(enddate.getMonth()+12-startdate.getMonth())+360*(enddate.getYear()-startdate.getYear()-1);
-  console.log(timeSpan);
-
-  var displayTime = chooseTime(timeSpan);
+  //to choose the appropriate timeSpan
+  var displayTime = chooseTime(startdate,enddate);
   console.log(displayTime);
 
   d3.json("data.json", function(data)
   {
-    var searchValue = searchRegion(region,regionname,data);
-
+    //to check if regionName of region is present in json
+    var searchValue = searchRegion(region,regionName,data);
     console.log(searchValue);
 
+    //returns 2 values if regionName is found
     if(searchValue.length == 2)
+    {
+      //filter the data to get data of ony that regionName within the given time limits
       filterData(searchValue[1].place,startdate,enddate);
+    }
     else
     {
-      showing.innerHTML = region + " " + regionname + " " +searchValue[0];
+      //if regionName is not found
+      showing.innerHTML = region + " " + regionName + " " +searchValue[0];
       return 0;
     }
     console.log(storeData);
 
+    //to group and combine the filtered data
     var graphData = operation(displayTime,storeData,startdate,enddate);
     console.log(graphData);
 
@@ -88,6 +89,7 @@ function showBy()
 
     if(check++ == 0)
     {
+      //first time bar chart is drawn
       svg.append("g")
          .attr("class", "x axis")
          .attr("transform","translate(0,"+height+")")
@@ -98,13 +100,15 @@ function showBy()
           .attr("dx", "-.8em")
           .attr("dy", "-.5em")
           .attr("transform", "rotate(-90)" );
-        }
-        else {
-          svg.select("g.x.axis")
+    }
+    else
+    {
+          //updation of bar chart
+      svg.select("g.x.axis")
           .selectAll("text")
           .transition().duration(2000).attr("y",2000);
 
-          svg.select("g.x.axis")
+      svg.select("g.x.axis")
           .transition().duration(2000).ease("sin-in-out")
           .call(xAxis)
           .selectAll("text")
@@ -112,7 +116,7 @@ function showBy()
            .attr("dx", "-.8em")
            .attr("dy", "-.5em")
            .attr("transform", "rotate(-90)" );
-        }
+    }
 
 
     svg.append("g")
@@ -143,8 +147,15 @@ function showBy()
   });
 }
 
-  function chooseTime(timeSpan)
+  //to choose the appropriate timeSpan
+  function chooseTime(startdate,enddate)
   {
+    var timeSpan = 0;
+    if(startdate.getYear() == enddate.getYear())
+      timeSpan = enddate.getDate()+1-startdate.getDate()+30*(enddate.getMonth()-startdate.getMonth());
+    else
+      timeSpan = enddate.getDate()+1-startdate.getDate()+30*(enddate.getMonth()+12-startdate.getMonth())+360*(enddate.getYear()-startdate.getYear()-1);
+
     if(timeSpan > 0 && timeSpan <= 900)
       return 'month';
     else if(timeSpan > 900 && timeSpan <= 10600)
@@ -155,6 +166,7 @@ function showBy()
       return 'century';
   }
 
+  // to group and map the filtered data according to timeSpan
   function operation (displayTime,data,startdate,enddate)
   {
 
@@ -233,9 +245,10 @@ function showBy()
       'year': opYear,
       'month': opMonth,
     };
-    return timeIn[displayTime]();
+    return timeIn[displayTime](data);
   }
 
+  //to check if regionName is present or not
   function searchRegion (name,valuePlace,data)
   {
     _.forEach(data, function(value)
@@ -252,6 +265,7 @@ function showBy()
     return returnVal;
   }
 
+  //storing the filtered data
   function filterData (data, startdate, enddate)
   {
 
@@ -269,6 +283,7 @@ function showBy()
     });
   }
 
+  //to filter the data to get only data between startdate and enddate of the given regionName
   function filtering(data, startdate, enddate)
   {
     return _.filter(data, function(value)
